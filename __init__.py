@@ -1,33 +1,31 @@
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTIBILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-# General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
-
 bl_info = {
     "name" : "KoreanIME",
     "author" : "영마섬",
-    "description" : "",
-    "blender" : (2, 80, 0),
+    "description" : "블렌더에서 한글 입력을 할 수 있게 해주는 애드온",
     "version" : (0, 0, 1),
+    "blender" : (2, 80, 0),
     "location" : "",
     "warning" : "",
     "category" : "Generic"
 }
 
-from . import auto_load
+from . import ops
+from . import keymap
 
-auto_load.init()
+### 모듈 등록 ###
+
+modules = (
+    ops,
+    keymap,
+    )
 
 def register():
-    auto_load.register()
+    for module in modules:
+        module.register()
 
 def unregister():
-    auto_load.unregister()
+    for module in reversed(modules):
+        module.unregister()
+
+if __name__ == "__main__":
+    register()
