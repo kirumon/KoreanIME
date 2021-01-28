@@ -14,6 +14,7 @@ class KOREAN_OT_view3d(GPU_OT_base):
         if context.object is None:
             Utils.MessageBox(context, "활성 오브젝트가 없습니다")
             return {'CANCELLED'}
+        self.source = "오브젝트 이름"
         self.mouse = (event.mouse_region_x, event.mouse_region_y)
         self.font = Font()
         self.font.shadow = True
@@ -31,14 +32,20 @@ class KOREAN_OT_view3d(GPU_OT_base):
             self.unregister_handlers(context)
             return {'CANCELLED'}
         if event.type in {"RET", "NUMPAD_ENTER"} and event.value=='PRESS':
-            newName = self.korean.GetText()
-            if newName == "":
-                Utils.MessageBox(context, "글자가 입력되지 않았습니다")
+            if not self.ApplyText(context):
                 return None
-            context.object.name = self.korean.GetText()
             context.window_manager.event_timer_remove(self.timer)
             self.unregister_handlers(context)
             return {'FINISHED'}
+        if event.type == "F2" and event.value=='PRESS':
+            if self.source == "오브젝트 이름" and context.object.type == 'FONT':
+                self.source = "텍스트"
+            else:
+                self.source = "오브젝트 이름"
+        if event.type == "F3" and event.value=='PRESS':
+            self.source = "장면 이름"
+        if event.type == "F4" and event.value=='PRESS':
+            self.source = "뷰레이어 이름"
         if event.type == "TAB" and event.value=='PRESS':
             self.korean.SetMode(not self.korean.GetMode())
         if event.type == "LEFT_ARROW" and event.value=='PRESS':
@@ -58,6 +65,21 @@ class KOREAN_OT_view3d(GPU_OT_base):
         else:
             if event.ascii:
                 self.korean.Input(event.ascii)
+
+    def ApplyText(self, context):
+        newName = self.korean.GetText()
+        if newName == "":
+            Utils.MessageBox(context, "글자가 입력되지 않았습니다")
+            return False
+        if self.source == "오브젝트 이름":
+            context.object.name = self.korean.GetText()
+        if self.source == "텍스트":
+            context.object.data.body = self.korean.GetText()
+        if self.source == "장면 이름":
+            context.scene.name = self.korean.GetText()
+        if self.source == "뷰레이어 이름":
+            context.view_layer.name = self.korean.GetText()
+        return True
 
     def OnDraw2D(self, context):
         mx, my = self.mouse
@@ -93,7 +115,7 @@ class KOREAN_OT_view3d(GPU_OT_base):
         GPU.DrawRect(sx+dsx, sy, dex-dsx, dey+5, (0.5,0.5,1,1))
 
     def drawMode(self, sx, sy):
-        text = "오브젝트 이름"
+        text = self.source
         self.font.color = (0.5, 0.5, 0.5, 1.0)
         self.font.Draw(sx, sy+30, text, 13)
 
