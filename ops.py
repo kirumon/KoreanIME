@@ -15,7 +15,7 @@ class KOREAN_OT_view3d(GPU_OT_base):
             Utils.MessageBox(context, "활성 오브젝트가 없습니다")
             return {'CANCELLED'}
         self.mouse = (event.mouse_region_x, event.mouse_region_y)
-        self.font = Font(20)
+        self.font = Font()
         self.font.shadow = True
         self.showCursor = True
         self.korean = Korean()
@@ -27,6 +27,15 @@ class KOREAN_OT_view3d(GPU_OT_base):
         if event.type == "TIMER":
             self.showCursor = not self.showCursor
         if event.type in {"RIGHTMOUSE", "ESC"} and event.value=='PRESS':
+            context.window_manager.event_timer_remove(self.timer)
+            self.unregister_handlers(context)
+            return {'CANCELLED'}
+        if event.type in {"RET", "NUMPAD_ENTER"} and event.value=='PRESS':
+            newName = self.korean.GetText()
+            if newName == "":
+                Utils.MessageBox(context, "글자가 입력되지 않았습니다")
+                return None
+            context.object.name = self.korean.GetText()
             context.window_manager.event_timer_remove(self.timer)
             self.unregister_handlers(context)
             return {'FINISHED'}
@@ -54,30 +63,39 @@ class KOREAN_OT_view3d(GPU_OT_base):
         mx, my = self.mouse
         modeText = "[가]" if self.korean.GetMode() else "[A]"
         text = f"{modeText} {self.korean.GetText()}"
-        dx, dy = self.font.dimension(text)
+        dx, dy = self.font.dimension(text, 20)
         self.drawBlock(mx-dx/2, my, modeText)
         if self.showCursor:
             self.drawCursor(mx-dx/2, my, modeText)
+        self.drawText(mx-dx/2, my+5, text, modeText)
+        self.drawMode(mx-dx/2, my)
+
+    def drawText(self, sx, sy, text, modeText):
         self.font.color = (1,1,1,1)
-        self.font.Draw(mx-dx/2, my+5, text)
+        self.font.Draw(sx, sy, text, 20)
         self.font.color = (1,1,0,1)
-        self.font.Draw(mx-dx/2, my+5, modeText)
+        self.font.Draw(sx, sy, modeText, 20)
 
     def drawCursor(self, sx, sy, modeText):
         text = self.korean.GetText()
         displayText = f"{modeText} {text}"
-        dx, dy = self.font.dimension(f"{modeText} {text[:self.korean.cursor]}")
+        dx, dy = self.font.dimension(f"{modeText} {text[:self.korean.cursor]}", 20)
         cx = 2
         if self.korean.status != "":
-            cx, cy = self.font.dimension(self.korean.combine())
+            cx, cy = self.font.dimension(self.korean.combine(), 20)
         GPU.DrawRect(sx+dx, sy, cx, dy+5, (1,0,0,1))
 
     def drawBlock(self, sx, sy, modeText):
         text = self.korean.GetText()
         displayText = f"{modeText} {text}"
-        dsx, dsy = self.font.dimension(f"{modeText} {text[:self.korean.selectionStart]}")
-        dex, dey = self.font.dimension(f"{modeText} {text[:self.korean.selectionEnd]}")
+        dsx, dsy = self.font.dimension(f"{modeText} {text[:self.korean.selectionStart]}", 20)
+        dex, dey = self.font.dimension(f"{modeText} {text[:self.korean.selectionEnd]}", 20)
         GPU.DrawRect(sx+dsx, sy, dex-dsx, dey+5, (0.5,0.5,1,1))
+
+    def drawMode(self, sx, sy):
+        text = "오브젝트 이름"
+        self.font.color = (0.5, 0.5, 0.5, 1.0)
+        self.font.Draw(sx, sy+30, text, 13)
 
     def OnDraw3D(self, context):
         pass

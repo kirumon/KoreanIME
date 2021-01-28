@@ -2,18 +2,17 @@ import bpy
 import blf
 
 class Font:
-    def __init__(self, size=12):
+    def __init__(self):
         self.font_id = 0
-        self.font_size = size
         self.shadow = False
         self.color = (1.0,1.0,1.0,1.0)
         self.shadow_color=(0.1,0.1,0.1,1.0)
 
-    def Draw(self, x, y, text):
+    def Draw(self, x, y, text, size):
         blf.position(self.font_id, x, y, 0)
         r, g, b, a = self.color
         blf.color(self.font_id, r, g, b, a)
-        blf.size(self.font_id, self.font_size, 72)
+        blf.size(self.font_id, size, 72)
 
         sr, sg, sb, sa = self.shadow_color
         if self.shadow:
@@ -25,6 +24,6 @@ class Font:
         if self.shadow:
             blf.disable(0, blf.SHADOW)
 
-    def dimension(self, text):
-        blf.size(self.font_id, self.font_size, 72)
+    def dimension(self, text, size):
+        blf.size(self.font_id, size, 72)
         return blf.dimensions(self.font_id, text)
