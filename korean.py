@@ -36,17 +36,72 @@ class Korean:
         self.koreanMode = koreanMode
 
     def Input(self, char):
+        if self.selectionStart != self.selectionEnd:
+            self.text = self.text[:self.selectionStart] + self.text[self.selectionEnd:]
+            self.cursor = self.selectionEnd = self.selectionStart
         if self.koreanMode:
             self.processKoreanInput(char if char in UPPER_CASE else char.lower())
         else:
             if self.status != "":
-                self.text += self.combine()
+                self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+                self.status = self.combineChar = ""
                 self.cursor += 1
-            self.text += char
+                self.selectionStart = self.selectionEnd = self.cursor
+            self.text = self.text[:self.selectionStart] + char + self.text[self.selectionEnd:]
             self.cursor += 1
+            self.selectionStart = self.selectionEnd = self.cursor
+
+    def Delete(self, backward=False):
+        if backward:
+            pass
+        else:
+            if self.status != "":
+                self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+                self.status = self.combineChar = ""
+                self.cursor += 1
+                self.selectionStart = self.selectionEnd = self.cursor
+
+    def Move(self, left=True):
+        if left:
+            if self.selectionStart == self.selectionEnd:
+                if self.status == "":
+                    self.cursor = max(0, self.cursor-1)
+                else:
+                    self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+                    self.status = self.combineChar = ""
+                self.selectionStart = self.selectionEnd = self.cursor
+            else:
+                self.cursor = self.selectionEnd = self.selectionStart
+        else:
+            if self.selectionStart == self.selectionEnd:
+                if self.status != "":
+                    self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+                    self.status = self.combineChar = ""
+                self.cursor = min(len(self.text), self.cursor+1)
+                self.selectionStart = self.selectionEnd = self.cursor
+            else:
+                self.cursor = self.selectionStart = self.selectionEnd
+
+    def GetMode(self):
+        return self.koreanMode
+
+    def SetMode(self, mode):
+        if self.status != "":
+            self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+            self.status = self.combineChar = ""
+            self.cursor += 1
+            self.selectionStart = self.selectionEnd = self.cursor
+        self.koreanMode = mode
+
+    def SetText(self, text):
+        self.text = text
+        self.selectionStart = 0
+        self.selectionEnd = self.cursor = len(text)
 
     def GetText(self):
-        return self.text + self.combine()
+        if self.status != "":
+            return self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+        return self.text
 
     def processKoreanInput(self, char):
         cType = self.getType(char)
@@ -56,10 +111,13 @@ class Korean:
             self.processVowel(char)
         else:
             if self.status != "":
-                self.text += self.combine()
+                self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+                self.status = self.combineChar = ""
                 self.cursor += 1
-            self.text += char
+                self.selectionStart = self.selectionEnd = self.cursor
+            self.text = self.text[:self.selectionStart] + char + self.text[self.selectionEnd:]
             self.cursor += 1
+            self.selectionStart = self.selectionEnd = self.cursor
 
     def processConsonant(self, char):
         if self.status == "":
@@ -71,13 +129,15 @@ class Korean:
                 self.status += "C"
                 self.combineChar += char
             else:
-                self.text += self.combine()
+                self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
                 self.cursor += 1
+                self.selectionStart = self.selectionEnd = self.cursor
                 self.status = "C"
                 self.combineChar = char
         elif self.status in {"CC", "V", "VV"}:
-            self.text += self.combine()
+            self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
             self.cursor += 1
+            self.selectionStart = self.selectionEnd = self.cursor
             self.status = "C"
             self.combineChar = char
         elif self.status in {"CV", "CVV"}:
@@ -89,8 +149,9 @@ class Korean:
                 self.status += "C"
                 self.combineChar += char
             else:
-                self.text += self.combine()
+                self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
                 self.cursor += 1
+                self.selectionStart = self.selectionEnd = self.cursor
                 self.status = "C"
                 self.combineChar = char
 
@@ -107,15 +168,17 @@ class Korean:
                 self.status += "V"
                 self.combineChar += char
             else:
-                self.text += self.combine()
+                self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
                 self.cursor += 1
+                self.selectionStart = self.selectionEnd = self.cursor
                 self.status = "V"
                 self.combineChar = char
         elif self.status == "CC":
             second_char = self.combineChar[1]
             self.combineChar = self.combineChar[0]
-            self.text += self.combine()
+            self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
             self.cursor += 1
+            self.selectionStart = self.selectionEnd = self.cursor
             self.status = "V"
             self.combineChar = char
         elif self.status == "CV":
@@ -124,20 +187,24 @@ class Korean:
                 self.status += "V"
                 self.combineChar += char
             else:
-                self.text += self.combine()
+                self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
                 self.cursor += 1
+                self.selectionStart = self.selectionEnd = self.cursor
                 self.status = "V"
                 self.combineChar = char
         elif self.status in {"VV", "CVV"}:
-            self.text += self.combine()
+            self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
             self.cursor += 1
+            self.selectionStart = self.selectionEnd = self.cursor
             self.status = "V"
             self.combineChar = char
         elif self.status in {"CVC", "CVCC", "CVVC", "CVVCC"}:
             last_char = self.combineChar[-1]
             self.combineChar = self.combineChar[:len(self.combineChar)-1]
-            self.text += self.combine()
+            self.status = self.status[:len(self.status)-1]
+            self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
             self.cursor += 1
+            self.selectionStart = self.selectionEnd = self.cursor
             self.status = "CV"
             self.combineChar = last_char + char
 
@@ -179,3 +246,4 @@ class Korean:
             jung = JUNGSEONG.index(self.combineChar[1:3])
             jong = JONGSEONG.index(self.combineChar[3:5])
             return chr(BASE_CODE[1] + cho * 588 + jung * 28)
+        return ""

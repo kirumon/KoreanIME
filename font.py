@@ -26,4 +26,5 @@ class Font:
             blf.disable(0, blf.SHADOW)
 
     def dimension(self, text):
+        blf.size(self.font_id, self.font_size, 72)
         return blf.dimensions(self.font_id, text)

@@ -7,7 +7,7 @@ def register_keymaps():
     kc = bpy.context.window_manager.keyconfigs.addon
     if kc:
         km = kc.keymaps.new(name = "Object Mode")
-        kmi = km.keymap_items.new("korean.view3d", type = 'D', value = 'PRESS')
+        kmi = km.keymap_items.new("korean.view3d", type = 'F2', value = 'PRESS')
         addon_keymaps.append((km, kmi))
 
 def unregister_keymaps():
