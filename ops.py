@@ -20,22 +20,26 @@ class KOREAN_OT_view3d(GPU_OT_base):
         self.showCursor = True
         self.korean = Korean()
         self.korean.SetText(context.object.name)
-        # self.timer = context.window_manager.event_timer_add(0.8, window=context.window)
+        self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
 
     def OnModal(self, context, event):
         self.mouse = (event.mouse_region_x, event.mouse_region_y)
         if event.type in {"RIGHTMOUSE", "ESC"} and event.value=='PRESS':
-            # context.window_manager.event_timer_remove(self.timer)
+            context.window_manager.event_timer_remove(self.timer)
             self.unregister_handlers(context)
             return {'FINISHED'}
         if event.type == "TAB" and event.value=='PRESS':
             self.korean.SetMode(not self.korean.GetMode())
         if event.type == "LEFT_ARROW" and event.value=='PRESS':
-            self.korean.Move()
+            self.korean.MoveLeft(event.shift)
         if event.type == "RIGHT_ARROW" and event.value=='PRESS':
-            self.korean.Move(False)
-        # if event.type == "TIMER":
-        #     self.showCursor = not self.showCursor
+            self.korean.MoveRight(event.shift)
+        if event.type == "DEL" and event.value=='PRESS':
+            self.korean.Delete()
+        if event.type == "BACK_SPACE" and event.value=='PRESS':
+            self.korean.Delete(True)
+        if event.type == "TIMER":
+            self.showCursor = not self.showCursor
         if event.ascii:
             self.korean.Input(event.ascii)
 
@@ -44,6 +48,7 @@ class KOREAN_OT_view3d(GPU_OT_base):
         modeText = "[가]" if self.korean.GetMode() else "[A]"
         text = f"{modeText} {self.korean.GetText()}"
         dx, dy = self.font.dimension(text)
+        self.drawBlock(mx-dx/2, my, modeText)
         if self.showCursor:
             self.drawCursor(mx-dx/2, my, modeText)
         self.font.color = (1,1,1,1)
@@ -54,16 +59,18 @@ class KOREAN_OT_view3d(GPU_OT_base):
     def drawCursor(self, sx, sy, modeText):
         text = self.korean.GetText()
         displayText = f"{modeText} {text}"
-        if self.korean.selectionStart == self.korean.selectionEnd:
-            dx, dy = self.font.dimension(f"{modeText} {text[:self.korean.cursor]}")
-            cx = 4
-            if self.korean.status != "":
-                cx, cy = self.font.dimension(self.korean.combine())
-            GPU.DrawRect(sx+dx, sy, cx, dy+5, (1,0,0,1))
-        else:
-            dsx, dsy = self.font.dimension(f"{modeText} {text[:self.korean.selectionStart]}")
-            dex, dey = self.font.dimension(f"{modeText} {text[:self.korean.selectionEnd]}")
-            GPU.DrawRect(sx+dsx, sy, dex-dsx, dey+5, (1,0,0,1))
+        dx, dy = self.font.dimension(f"{modeText} {text[:self.korean.cursor]}")
+        cx = 2
+        if self.korean.status != "":
+            cx, cy = self.font.dimension(self.korean.combine())
+        GPU.DrawRect(sx+dx, sy, cx, dy+5, (1,0,0,1))
+
+    def drawBlock(self, sx, sy, modeText):
+        text = self.korean.GetText()
+        displayText = f"{modeText} {text}"
+        dsx, dsy = self.font.dimension(f"{modeText} {text[:self.korean.selectionStart]}")
+        dex, dey = self.font.dimension(f"{modeText} {text[:self.korean.selectionEnd]}")
+        GPU.DrawRect(sx+dsx, sy, dex-dsx, dey+5, (0.5,0.5,1,1))
 
     def OnDraw3D(self, context):
         pass

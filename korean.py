@@ -26,7 +26,7 @@ UPPER_CASE = ('Q','W','E','R','T','O','P')
 BASE_CODE = (12593, 44032)
 
 class Korean:
-    def __init__(self, koreanMode=False):
+    def __init__(self, koreanMode=False, multiLine=False):
         self.text = ""
         self.combineChar = ""
         self.status = ""
@@ -34,6 +34,7 @@ class Korean:
         self.selectionStart = 0
         self.selectionEnd = 0
         self.koreanMode = koreanMode
+        self.multiLine = multiLine
 
     def Input(self, char):
         if self.selectionStart != self.selectionEnd:
@@ -51,18 +52,35 @@ class Korean:
             self.cursor += 1
             self.selectionStart = self.selectionEnd = self.cursor
 
-    def Delete(self, backward=False):
-        if backward:
+    def Delete(self, backspace=False):
+        print("delete", backspace)
+        if backspace:
             pass
         else:
-            if self.status != "":
-                self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
-                self.status = self.combineChar = ""
-                self.cursor += 1
-                self.selectionStart = self.selectionEnd = self.cursor
+            if self.selectionStart == self.selectionEnd:
+                self.text = self.text[:self.selectionStart] + self.text[self.selectionEnd+1:]
+            else:
+                self.text = self.text[:self.selectionStart] + self.text[self.selectionEnd:]
+                self.cursor = self.selectionEnd = self.selectionStart
 
-    def Move(self, left=True):
-        if left:
+    def MoveLeft(self, shift=False):
+        if shift:
+            if self.selectionStart == self.selectionEnd:
+                if self.status == "":
+                    self.cursor = max(0, self.cursor-1)
+                    self.selectionStart = self.cursor
+                else:
+                    self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+                    self.status = self.combineChar = ""
+                    self.selectionEnd += 1
+            else:
+                if self.cursor == self.selectionStart:
+                    self.cursor = max(0, self.cursor-1)
+                    self.selectionStart = self.cursor
+                else:
+                    self.cursor = max(0, self.cursor-1)
+                    self.selectionEnd = self.cursor
+        else:
             if self.selectionStart == self.selectionEnd:
                 if self.status == "":
                     self.cursor = max(0, self.cursor-1)
@@ -72,6 +90,24 @@ class Korean:
                 self.selectionStart = self.selectionEnd = self.cursor
             else:
                 self.cursor = self.selectionEnd = self.selectionStart
+
+    def MoveRight(self, shift=False):
+        if shift:
+            if self.selectionStart == self.selectionEnd:
+                if self.status != "":
+                    self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+                    self.status = self.combineChar = ""
+                    self.cursor += 1
+                    self.selectionStart = self.selectionEnd = self.cursor
+                self.cursor = min(len(self.text), self.cursor+1)
+                self.selectionEnd = self.cursor
+            else:
+                if self.cursor == self.selectionStart:
+                    self.cursor = min(len(self.text), self.cursor+1)
+                    self.selectionStart = self.cursor
+                else:
+                    self.cursor = min(len(self.text), self.cursor+1)
+                    self.selectionEnd = self.cursor
         else:
             if self.selectionStart == self.selectionEnd:
                 if self.status != "":
