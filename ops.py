@@ -24,6 +24,8 @@ class KOREAN_OT_view3d(GPU_OT_base):
 
     def OnModal(self, context, event):
         self.mouse = (event.mouse_region_x, event.mouse_region_y)
+        if event.type == "TIMER":
+            self.showCursor = not self.showCursor
         if event.type in {"RIGHTMOUSE", "ESC"} and event.value=='PRESS':
             context.window_manager.event_timer_remove(self.timer)
             self.unregister_handlers(context)
@@ -38,8 +40,10 @@ class KOREAN_OT_view3d(GPU_OT_base):
             self.korean.Delete()
         if event.type == "BACK_SPACE" and event.value=='PRESS':
             self.korean.Delete(True)
-        if event.type == "TIMER":
-            self.showCursor = not self.showCursor
+        if event.type == "HOME" and event.value=='PRESS':
+            self.korean.LineHome(event.shift)
+        if event.type == "END" and event.value=='PRESS':
+            self.korean.LineEnd(event.shift)
         if event.ascii:
             self.korean.Input(event.ascii)
 

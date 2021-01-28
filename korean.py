@@ -78,6 +78,44 @@ class Korean:
                 self.text = self.text[:self.selectionStart] + self.text[self.selectionEnd:]
                 self.cursor = self.selectionEnd = self.selectionStart
 
+    def LineHome(self, shift):
+        if shift:
+            if self.selectionStart == self.selectionEnd:
+                if self.status != "":
+                    self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+                    self.status = self.combineChar = ""
+                    self.selectionEnd += 1
+                    self.cursor = self.selectionStart = 0
+                else:
+                    self.cursor = self.selectionStart = 0
+            else:
+                if self.cursor == self.selectionEnd:
+                    self.selectionEnd = self.selectionStart
+                self.cursor = self.selectionStart = 0
+        else:
+            if self.status != "":
+                self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+                self.status = self.combineChar = ""
+            self.selectionStart = self.selectionEnd = self.cursor = 0
+
+    def LineEnd(self, shift):
+        if shift:
+            if self.selectionStart == self.selectionEnd:
+                if self.status != "":
+                    self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+                    self.status = self.combineChar = ""
+                    self.selectionStart += 1
+                self.cursor = self.selectionEnd = len(self.text)
+            else:
+                if self.cursor == self.selectionStart:
+                    self.selectionStart = self.selectionEnd
+                self.cursor = self.selectionEnd = len(self.text)
+        else:
+            if self.status != "":
+                self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+                self.status = self.combineChar = ""
+            self.selectionStart = self.selectionEnd = self.cursor = len(self.text)
+
     def MoveLeft(self, shift=False):
         if shift:
             if self.selectionStart == self.selectionEnd:
