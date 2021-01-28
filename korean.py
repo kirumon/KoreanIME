@@ -171,6 +171,14 @@ class Korean:
             else:
                 self.cursor = self.selectionStart = self.selectionEnd
 
+    def SelectAll(self):
+        if self.status != "":
+            self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+            self.status = self.combineChar = ""
+        self.selectionStart = 0
+        self.cursor = self.selectionEnd = len(self.text)
+
+
     def GetMode(self):
         return self.koreanMode
 

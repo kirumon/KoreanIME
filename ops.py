@@ -44,8 +44,11 @@ class KOREAN_OT_view3d(GPU_OT_base):
             self.korean.LineHome(event.shift)
         if event.type == "END" and event.value=='PRESS':
             self.korean.LineEnd(event.shift)
-        if event.ascii:
-            self.korean.Input(event.ascii)
+        if event.type == "A" and event.value=='PRESS' and event.ctrl:
+            self.korean.SelectAll()
+        else:
+            if event.ascii:
+                self.korean.Input(event.ascii)
 
     def OnDraw2D(self, context):
         mx, my = self.mouse
