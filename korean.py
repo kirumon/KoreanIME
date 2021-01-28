@@ -53,12 +53,27 @@ class Korean:
             self.selectionStart = self.selectionEnd = self.cursor
 
     def Delete(self, backspace=False):
-        print("delete", backspace)
         if backspace:
-            pass
+            if self.selectionStart == self.selectionEnd:
+                if self.status != "":
+                    self.status = self.status[:len(self.status)-1]
+                    self.combineChar = self.combineChar[:len(self.combineChar)-1]
+                else:
+                    self.selectionStart = max(0, self.selectionStart-1)
+                    self.text = self.text[:self.selectionStart] + self.text[self.selectionEnd:]
+                    self.cursor = self.selectionEnd = self.selectionStart
+            else:
+                self.text = self.text[:self.selectionStart] + self.text[self.selectionEnd:]
+                self.cursor = self.selectionEnd = self.selectionStart
         else:
             if self.selectionStart == self.selectionEnd:
-                self.text = self.text[:self.selectionStart] + self.text[self.selectionEnd+1:]
+                if self.status != "":
+                    self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+                    self.status = self.combineChar = ""
+                    self.cursor += 1
+                    self.selectionStart = self.selectionEnd = self.cursor
+                else:
+                    self.text = self.text[:self.selectionStart] + self.text[self.selectionEnd+1:]
             else:
                 self.text = self.text[:self.selectionStart] + self.text[self.selectionEnd:]
                 self.cursor = self.selectionEnd = self.selectionStart
