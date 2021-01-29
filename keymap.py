@@ -9,6 +9,9 @@ def register_keymaps():
         km = kc.keymaps.new(name = "Object Mode")
         kmi = km.keymap_items.new("korean.view3d", type = 'F2', value = 'PRESS')
         addon_keymaps.append((km, kmi))
+        km = kc.keymaps.new(name = "Outliner", space_type='OUTLINER')
+        kmi = km.keymap_items.new("korean.outliner", type = 'F2', value = 'PRESS')
+        addon_keymaps.append((km, kmi))
 
 def unregister_keymaps():
     kc = bpy.context.window_manager.keyconfigs.addon

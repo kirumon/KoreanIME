@@ -204,6 +204,7 @@ class Korean:
 
     def SetText(self, text):
         self.text = text
+        self.status = self.combineChar = ""
         self.selectionStart = 0
         self.selectionEnd = self.cursor = len(text)
 
