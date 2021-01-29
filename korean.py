@@ -36,6 +36,9 @@ class Korean:
         self.koreanMode = koreanMode
         self.multiLine = multiLine
 
+    def SelectedText(self):
+        return self.text[self.selectionStart:self.selectionEnd]
+
     def Input(self, char):
         if self.selectionStart != self.selectionEnd:
             self.text = self.text[:self.selectionStart] + self.text[self.selectionEnd:]
@@ -178,6 +181,15 @@ class Korean:
         self.selectionStart = 0
         self.cursor = self.selectionEnd = len(self.text)
 
+    def Paste(self, text):
+        if self.status != "":
+            self.text = self.text[:self.selectionStart] + self.combine() + self.text[self.selectionEnd:]
+            self.status = self.combineChar = ""
+            self.cursor += 1
+            self.selectionStart = self.selectionEnd = self.cursor
+        self.text = self.text[:self.selectionStart] + text + self.text[self.selectionEnd:]
+        self.cursor = self.selectionStart + len(text)
+        self.selectionStart = self.selectionEnd = self.cursor
 
     def GetMode(self):
         return self.koreanMode
