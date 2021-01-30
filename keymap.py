@@ -12,6 +12,9 @@ def register_keymaps():
         km = kc.keymaps.new(name = "Outliner", space_type='OUTLINER')
         kmi = km.keymap_items.new("korean.outliner", type = 'F2', value = 'PRESS')
         addon_keymaps.append((km, kmi))
+        km = kc.keymaps.new(name = "Dopesheet", space_type='DOPESHEET_EDITOR')
+        kmi = km.keymap_items.new("korean.dopesheet", type = 'F2', value = 'PRESS')
+        addon_keymaps.append((km, kmi))
 
 def unregister_keymaps():
     kc = bpy.context.window_manager.keyconfigs.addon

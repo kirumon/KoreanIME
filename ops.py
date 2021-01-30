@@ -96,7 +96,7 @@ class TextDisplay:
         self.font.Draw(sx, sy+30, text, 13)
 
 class KOREAN_OT_view3d(GPU_OT_base):
-    """텍스트 입력 상자에 한글 입력"""
+    """간접적으로 한글을 입력한다"""
     bl_idname = "korean.view3d"
     bl_label = "한글 입력"
 
@@ -153,26 +153,26 @@ class KOREAN_OT_view3d(GPU_OT_base):
         pass
 
 class KOREAN_OT_outliner(GPU_OT_base):
-    """텍스트 입력 상자에 한글 입력"""
+    """간접적으로 한글을 입력한다"""
     bl_idname = "korean.outliner"
     bl_label = "한글 입력"
 
     def OnInvoke(self, context, event):
-        if context.object is None:
-            Utils.MessageBox(context, "활성 오브젝트가 없습니다")
+        if context.collection is None:
+            Utils.MessageBox(context, "활성 컬렉션이 없습니다")
             return {'CANCELLED'}
-        self.source = "컬렉션 이름"
-        self.display = TextDisplay(event, context.collection.name)
+        self.source = "검색 필터"
+        self.display = TextDisplay(event, context.space_data.filter_text)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
 
     def OnModal(self, context, event):
         if event.type == "F2" and event.value=='PRESS':
-            if self.source == "컬렉션 이름":
-                self.source = "검색 필터"
-                self.display.SetText(context.space_data.filter_text)
-            else:
+            if self.source == "검색 필터":
                 self.source = "컬렉션 이름"
                 self.display.SetText(context.collection.name)
+            else:
+                self.source = "검색 필터"
+                self.display.SetText(context.space_data.filter_text)
         returnValue = self.display.Modal(self, context, event)
         if self.source == "검색 필터":
             context.space_data.filter_text = self.display.GetText()
@@ -195,11 +195,57 @@ class KOREAN_OT_outliner(GPU_OT_base):
     def OnDraw3D(self, context):
         pass
 
+class KOREAN_OT_dopesheet(GPU_OT_base):
+    """간접적으로 한글을 입력한다"""
+    bl_idname = "korean.dopesheet"
+    bl_label = "한글 입력"
+
+    def OnInvoke(self, context, event):
+        if context.object is None:
+            Utils.MessageBox(context, "활성 오브젝트가 없습니다")
+            return {'CANCELLED'}
+        self.source = "검색 필터"
+        self.display = TextDisplay(event, context.space_data.dopesheet.filter_text)
+        self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
+
+    def OnModal(self, context, event):
+        if event.type == "F2" and event.value=='PRESS':
+            if self.source == "검색 필터":
+                if context.space_data.mode in {'ACTION', 'SHAPEKEY'}:
+                    if context.space_data.action:
+                        self.source = "Action 이름"
+                        self.display.SetText(context.space_data.action.name)
+            else:
+                self.source = "검색 필터"
+                self.display.SetText(context.space_data.dopesheet.filter_text)
+        returnValue = self.display.Modal(self, context, event)
+        if self.source == "검색 필터":
+            context.space_data.dopesheet.filter_text = self.display.GetText()
+        return None if returnValue is None else returnValue
+
+    def ApplyText(self, context):
+        newName = self.display.GetText()
+        if newName == "":
+            Utils.MessageBox(context, "글자가 입력되지 않았습니다")
+            return False
+        if self.source == "검색 필터":
+            context.space_data.dopesheet.filter_text = self.display.GetText()
+        if self.source == "Action 이름":
+            context.space_data.action.name = self.display.GetText()
+        return True
+
+    def OnDraw2D(self, context):
+        self.display.Draw(self, context, self.source)
+
+    def OnDraw3D(self, context):
+        pass
+
 ### 클래스 등록 ###
 
 classes = (
     KOREAN_OT_view3d,
     KOREAN_OT_outliner,
+    KOREAN_OT_dopesheet,
     )
 
 def register():
