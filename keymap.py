@@ -15,6 +15,12 @@ def register_keymaps():
         km = kc.keymaps.new(name = "Dopesheet", space_type='DOPESHEET_EDITOR')
         kmi = km.keymap_items.new("korean.dopesheet", type = 'F2', value = 'PRESS')
         addon_keymaps.append((km, kmi))
+        km = kc.keymaps.new(name = "Property Editor", space_type='PROPERTIES')
+        kmi = km.keymap_items.new("korean.properties", type = 'F2', value = 'PRESS')
+        addon_keymaps.append((km, kmi))
+        km = kc.keymaps.new(name = "Window")
+        kmi = km.keymap_items.new("korean.textfield", type = 'F2', value = 'PRESS')
+        addon_keymaps.append((km, kmi))
 
 def unregister_keymaps():
     kc = bpy.context.window_manager.keyconfigs.addon

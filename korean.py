@@ -350,10 +350,10 @@ class Korean:
             cho = CHOSEONG.index(self.combineChar[0])
             jung = JUNGSEONG.index(self.combineChar[1:3])
             jong = JONGSEONG.index(self.combineChar[3])
-            return chr(BASE_CODE[1] + cho * 588 + jung * 28)
+            return chr(BASE_CODE[1] + cho * 588 + jung * 28 + jong)
         elif self.status == "CVVCC":
             cho = CHOSEONG.index(self.combineChar[0])
             jung = JUNGSEONG.index(self.combineChar[1:3])
             jong = JONGSEONG.index(self.combineChar[3:5])
-            return chr(BASE_CODE[1] + cho * 588 + jung * 28)
+            return chr(BASE_CODE[1] + cho * 588 + jung * 28 + jong)
         return ""
