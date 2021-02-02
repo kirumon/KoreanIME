@@ -1,19 +1,35 @@
 import bpy
+import os
 from . gpu_op import GPU_OT_base
 from . font import Font
 from . korean import Korean
-from . utils import Utils
+from . utils import Utils, RegionInfo
 from . draw import GPU
 
+TEXT_SIZE = 20
 MESHDATA_SOURCE = ("Vertex Groups", "Shape Keys", "UV Maps", "Vertex Colors", "Face Maps")
 
+DEFAULT_FILE_EXTENSION = {
+    'WM_OT_save_mainfile':'blend',
+    'WM_OT_save_as_mainfile':'blend',
+    'WM_OT_collada_export':'dae',
+    'WM_OT_alembic_export':'abc',
+    'EXPORT_ANIM_OT_bvh':'bvh',
+    'EXPORT_MESH_OT_ply':'ply',
+    'EXPORT_MESH_OT_stl':'stl',
+    'EXPORT_SCENE_OT_fbx':'fbx',
+    'EXPORT_SCENE_OT_obj':'obj',
+    'EXPORT_SCENE_OT_x3d':'x3d',
+}
+
 class TextDisplay:
-    def __init__(self, event, text):
+    def __init__(self, event, text, start_region):
         self.enable = True
         self.mouse = (event.mouse_region_x, event.mouse_region_y)
         self.showCursor = True
         self.korean = Korean()
         self.korean.SetText(text)
+        self.region = start_region
 
     def SetText(self, text):
         self.enable = True
@@ -65,12 +81,27 @@ class TextDisplay:
             self.korean.Input(event.ascii)
         return {'RUNNING_MODAL'}
 
-    def Draw(self, cls, context, source):
+    def getMouseCoord(self, cls, context):
         mx, my = self.mouse
+        if self.region.type == 'HEADER':
+            if self.region.alignment == 'TOP':
+                return mx, context.area.height - self.region.height - 70 + my
+            else:
+                return mx, my + self.region.height
+        elif self.region.type == 'UI':
+            if self.region.alignment == 'RIGHT':
+                return context.area.width-self.region.width+mx, my
+            else:
+                return mx, my
+        else:
+            return self.mouse
+
+    def Draw(self, cls, context, source):
+        mx, my = self.getMouseCoord(cls, context)
         if self.enable:
             modeText = "[가]" if self.korean.GetMode() else "[A]"
             text = f"{modeText} {self.korean.GetText()}"
-            dx, dy = cls.GetTextDimension(text, 20)
+            dx, dy = cls.GetTextDimension(text, TEXT_SIZE)
             self.drawBlock(cls, mx-dx/2, my, modeText)
             if self.showCursor:
                 self.drawCursor(cls, mx-dx/2, my, modeText)
@@ -78,28 +109,28 @@ class TextDisplay:
             self.drawMode(cls, mx-dx/2, my, source)
         else:
             text = "데이터가 없습니다"
-            dx, dy = cls.GetTextDimension(text, 20)
-            cls.DrawTextS(mx-dx/2, my+5, text, 20)
+            dx, dy = cls.GetTextDimension(text, TEXT_SIZE)
+            cls.DrawTextS(mx-dx/2, my+5, text, TEXT_SIZE)
             self.drawMode(cls, mx-dx/2, my, source)
 
     def drawText(self, cls, sx, sy, text, modeText):
-        cls.DrawTextS(sx, sy, text, 20)
-        cls.DrawTextS(sx, sy, modeText, 20, (1.0,1.0,0.0,1.0))
+        cls.DrawTextS(sx, sy, text, TEXT_SIZE)
+        cls.DrawTextS(sx, sy, modeText, TEXT_SIZE, (1.0,1.0,0.0,1.0))
 
     def drawCursor(self, cls, sx, sy, modeText):
         text = self.korean.GetText()
         displayText = f"{modeText} {text}"
-        dx, dy = cls.GetTextDimension(f"{modeText} {text[:self.korean.cursor]}", 20)
+        dx, dy = cls.GetTextDimension(f"{modeText} {text[:self.korean.cursor]}", TEXT_SIZE)
         cx = 2
         if self.korean.status != "":
-            cx, cy = cls.GetTextDimension(self.korean.combine(), 20)
+            cx, cy = cls.GetTextDimension(self.korean.combine(), TEXT_SIZE)
         GPU.DrawRect(sx+dx, sy, cx, dy+5, (1,0,0,1))
 
     def drawBlock(self, cls, sx, sy, modeText):
         text = self.korean.GetText()
         displayText = f"{modeText} {text}"
-        dsx, dsy = cls.GetTextDimension(f"{modeText} {text[:self.korean.selectionStart]}", 20)
-        dex, dey = cls.GetTextDimension(f"{modeText} {text[:self.korean.selectionEnd]}", 20)
+        dsx, dsy = cls.GetTextDimension(f"{modeText} {text[:self.korean.selectionStart]}", TEXT_SIZE)
+        dex, dey = cls.GetTextDimension(f"{modeText} {text[:self.korean.selectionEnd]}", TEXT_SIZE)
         GPU.DrawRect(sx+dsx, sy, dex-dsx, dey+5, (0.5,0.5,1,1))
 
     def drawMode(self, cls, sx, sy, source):
@@ -115,7 +146,7 @@ class KOREAN_OT_view3d(GPU_OT_base):
             Utils.MessageBox(context, "활성 오브젝트가 없습니다")
             return {'CANCELLED'}
         self.source = "오브젝트 이름"
-        self.display = TextDisplay(event, context.object.name)
+        self.display = TextDisplay(event, context.object.name, context.region)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -176,7 +207,7 @@ class KOREAN_OT_outliner(GPU_OT_base):
             Utils.MessageBox(context, "활성 컬렉션이 없습니다")
             return {'CANCELLED'}
         self.source = "검색 필터"
-        self.display = TextDisplay(event, context.space_data.filter_text)
+        self.display = TextDisplay(event, context.space_data.filter_text, context.region)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -224,7 +255,7 @@ class KOREAN_OT_dopesheet(GPU_OT_base):
             Utils.MessageBox(context, "활성 오브젝트가 없습니다")
             return {'CANCELLED'}
         self.source = "검색 필터"
-        self.display = TextDisplay(event, context.space_data.dopesheet.filter_text)
+        self.display = TextDisplay(event, context.space_data.dopesheet.filter_text, context.region)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -276,7 +307,7 @@ class KOREAN_OT_properties(GPU_OT_base):
     def invoke(self, context, event):
         self.source = "검색 필터"
         self.mesh_source_index = 0
-        self.display = TextDisplay(event, context.space_data.search_filter)
+        self.display = TextDisplay(event, context.space_data.search_filter, context.region)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -364,7 +395,7 @@ class KOREAN_OT_textfield(GPU_OT_base):
         self.data_path = context.window_manager.clipboard
         if not isinstance(eval(context.window_manager.clipboard), str):
             return {"CANCELLED"}
-        self.display = TextDisplay(event, eval(self.data_path))
+        self.display = TextDisplay(event, eval(self.data_path), context.region)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -391,6 +422,167 @@ class KOREAN_OT_textfield(GPU_OT_base):
     def OnDraw3D(self, context):
         pass
 
+class KOREAN_OT_graph(GPU_OT_base):
+    """간접적으로 한글을 입력한다"""
+    bl_idname = "korean.graph"
+    bl_label = "한글 입력"
+
+    def invoke(self, context, event):
+        if context.object is None:
+            Utils.MessageBox(context, "활성 오브젝트가 없습니다")
+            return {'CANCELLED'}
+        self.source = "검색 필터"
+        self.display = TextDisplay(event, context.space_data.dopesheet.filter_text, context.region)
+        self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
+        self.RegisterHandlers(context)
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def modal(self, context, event):
+        if context.area:
+            context.area.tag_redraw()
+        returnValue = self.display.Modal(self, context, event)
+        context.space_data.dopesheet.filter_text = self.display.GetText()
+        return returnValue
+
+    def ApplyText(self, context):
+        return True
+
+    def OnDraw2D(self, context):
+        self.display.Draw(self, context, self.source)
+
+    def OnDraw3D(self, context):
+        pass
+
+class KOREAN_OT_nonlinear(GPU_OT_base):
+    """간접적으로 한글을 입력한다"""
+    bl_idname = "korean.nonlinear"
+    bl_label = "한글 입력"
+
+    def invoke(self, context, event):
+        if context.object is None:
+            Utils.MessageBox(context, "활성 오브젝트가 없습니다")
+            return {'CANCELLED'}
+        self.source = "검색 필터"
+        self.display = TextDisplay(event, context.space_data.dopesheet.filter_text, context.region)
+        self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
+        self.RegisterHandlers(context)
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def modal(self, context, event):
+        if context.area:
+            context.area.tag_redraw()
+        returnValue = self.display.Modal(self, context, event)
+        context.space_data.dopesheet.filter_text = self.display.GetText()
+        return returnValue
+
+    def ApplyText(self, context):
+        return True
+
+    def OnDraw2D(self, context):
+        self.display.Draw(self, context, self.source)
+
+    def OnDraw3D(self, context):
+        pass
+
+class KOREAN_OT_sequencer(GPU_OT_base):
+    """간접적으로 한글을 입력한다"""
+    bl_idname = "korean.sequencer"
+    bl_label = "한글 입력"
+
+    def invoke(self, context, event):
+        if context.scene.sequence_editor.active_strip is None:
+            return {'CANCELLED'}
+        self.source = "시퀀스 스트립 이름"
+        self.display = TextDisplay(event, context.scene.sequence_editor.active_strip.name, context.region)
+        self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
+        self.RegisterHandlers(context)
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def modal(self, context, event):
+        if context.area:
+            context.area.tag_redraw()
+        if event.type == "F2" and event.value=='PRESS':
+            if self.source == "시퀀스 스트립 이름":
+                if context.scene.sequence_editor.active_strip.type == 'TEXT':
+                    self.source = "텍스트"
+                    self.display.SetText(context.scene.sequence_editor.active_strip.text)
+            else:
+                self.source = "시퀀스 스트립 이름"
+                self.display.SetText(context.scene.sequence_editor.active_strip.name)
+        return self.display.Modal(self, context, event)
+
+    def ApplyText(self, context):
+        newName = self.display.GetText()
+        if newName == "":
+            Utils.MessageBox(context, "글자가 입력되지 않았습니다")
+            return False
+        if self.source == "시퀀스 스트립 이름":
+            context.scene.sequence_editor.active_strip.name = self.display.GetText()
+        if self.source == "텍스트":
+            context.scene.sequence_editor.active_strip.text = self.display.GetText()
+        return True
+
+    def OnDraw2D(self, context):
+        self.display.Draw(self, context, self.source)
+
+    def OnDraw3D(self, context):
+        pass
+
+class KOREAN_OT_browser(GPU_OT_base):
+    """간접적으로 한글을 입력한다"""
+    bl_idname = "korean.browser"
+    bl_label = "한글 입력"
+
+    def invoke(self, context, event):
+        self.source = "검색 필터"
+        self.display = TextDisplay(event, context.space_data.params.filter_search, context.region)
+        self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
+        self.RegisterHandlers(context)
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def modal(self, context, event):
+        if context.area:
+            context.area.tag_redraw()
+        if event.type == "F1" and event.value=='PRESS':
+            self.source = "디렉토리"
+            self.display.SetText(context.space_data.params.directory.decode())
+        if event.type == "F2" and event.value=='PRESS':
+            self.source = "검색 필터"
+            self.display.SetText(context.space_data.params.filter_search)
+        if event.type == "F3" and event.value=='PRESS':
+            self.source = "파일"
+            self.display.SetText(context.space_data.params.filename)
+        returnValue = self.display.Modal(self, context, event)
+        if self.source == "검색 필터":
+            context.space_data.params.filter_search = self.display.GetText()
+        return returnValue
+
+    def ApplyText(self, context):
+        newName = self.display.GetText()
+        if newName == "":
+            Utils.MessageBox(context, "글자가 입력되지 않았습니다")
+            return False
+        if self.source == "디렉토리":
+            context.space_data.params.directory = self.display.GetText().encode('utf-8')
+        if self.source == "파일":
+            filename = self.display.GetText()
+            stext = os.path.splitext(filename)
+            ext = DEFAULT_FILE_EXTENSION[context.space_data.active_operator.bl_idname]
+            if stext[1] != ext:
+                filename += f".{ext}"
+            context.space_data.params.filename = filename
+        return True
+
+    def OnDraw2D(self, context):
+        self.display.Draw(self, context, self.source)
+
+    def OnDraw3D(self, context):
+        pass
+
 ### 클래스 등록 ###
 
 classes = (
@@ -399,6 +591,10 @@ classes = (
     KOREAN_OT_dopesheet,
     KOREAN_OT_properties,
     KOREAN_OT_textfield,
+    KOREAN_OT_graph,
+    KOREAN_OT_nonlinear,
+    KOREAN_OT_sequencer,
+    KOREAN_OT_browser,
     )
 
 def register():
