@@ -33,6 +33,12 @@ def register_keymaps():
         km = kc.keymaps.new(name = "File Browser", space_type='FILE_BROWSER')
         kmi = km.keymap_items.new("korean.browser", type = 'F2', value = 'PRESS')
         addon_keymaps.append((km, kmi))
+        km = kc.keymaps.new(name = "Text", space_type='TEXT_EDITOR')
+        kmi = km.keymap_items.new("korean.text_editor", type = 'F2', value = 'PRESS')
+        addon_keymaps.append((km, kmi))
+        km = kc.keymaps.new(name = "Text Generic", space_type='TEXT_EDITOR')
+        kmi = km.keymap_items.new("korean.text_find", type = 'F', value = 'PRESS', ctrl=True)
+        addon_keymaps.append((km, kmi))
 
 def unregister_keymaps():
     kc = bpy.context.window_manager.keyconfigs.addon

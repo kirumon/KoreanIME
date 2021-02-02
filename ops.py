@@ -20,14 +20,16 @@ DEFAULT_FILE_EXTENSION = {
     'EXPORT_SCENE_OT_fbx':'fbx',
     'EXPORT_SCENE_OT_obj':'obj',
     'EXPORT_SCENE_OT_x3d':'x3d',
+    'WM_OT_usd_export':'usdc',
+    'EXPORT_SCENE_OT_gltf':'glb',
 }
 
 class TextDisplay:
-    def __init__(self, event, text, start_region):
+    def __init__(self, event, text, start_region, kmode=True):
         self.enable = True
         self.mouse = (event.mouse_region_x, event.mouse_region_y)
         self.showCursor = True
-        self.korean = Korean()
+        self.korean = Korean(kmode)
         self.korean.SetText(text)
         self.region = start_region
 
@@ -48,12 +50,14 @@ class TextDisplay:
         if event.type in {"RIGHTMOUSE", "ESC"} and event.value=='PRESS':
             context.window_manager.event_timer_remove(cls.timer)
             cls.UnregisterHandlers(context)
+            context.preferences.addons[__package__.split(".")[0]].preferences.kmode = self.korean.koreanMode
             return {'CANCELLED'}
         if event.type in {"RET", "NUMPAD_ENTER"} and event.value=='PRESS':
             if not cls.ApplyText(context):
-                return None
+                return {'RUNNING_MODAL'}
             context.window_manager.event_timer_remove(cls.timer)
             cls.UnregisterHandlers(context)
+            context.preferences.addons[__package__.split(".")[0]].preferences.kmode = self.korean.koreanMode
             return {'FINISHED'}
         if not self.enable:
             return {'RUNNING_MODAL'}
@@ -98,15 +102,16 @@ class TextDisplay:
 
     def Draw(self, cls, context, source):
         mx, my = self.getMouseCoord(cls, context)
+        te = 10 if context.space_data.type == 'TEXT_EDITOR' else 0
         if self.enable:
             modeText = "[가]" if self.korean.GetMode() else "[A]"
             text = f"{modeText} {self.korean.GetText()}"
             dx, dy = cls.GetTextDimension(text, TEXT_SIZE)
-            self.drawBlock(cls, mx-dx/2, my, modeText)
+            self.drawBlock(cls, mx-dx/2, my+te, modeText)
             if self.showCursor:
-                self.drawCursor(cls, mx-dx/2, my, modeText)
-            self.drawText(cls, mx-dx/2, my+5, text, modeText)
-            self.drawMode(cls, mx-dx/2, my, source)
+                self.drawCursor(cls, mx-dx/2, my+te, modeText)
+            self.drawText(cls, mx-dx/2, my+5+te, text, modeText)
+            self.drawMode(cls, mx-dx/2, my+te, source)
         else:
             text = "데이터가 없습니다"
             dx, dy = cls.GetTextDimension(text, TEXT_SIZE)
@@ -142,11 +147,12 @@ class KOREAN_OT_view3d(GPU_OT_base):
     bl_label = "한글 입력"
 
     def invoke(self, context, event):
+        kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
         if context.object is None:
             Utils.MessageBox(context, "활성 오브젝트가 없습니다")
             return {'CANCELLED'}
         self.source = "오브젝트 이름"
-        self.display = TextDisplay(event, context.object.name, context.region)
+        self.display = TextDisplay(event, context.object.name, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -203,11 +209,12 @@ class KOREAN_OT_outliner(GPU_OT_base):
     bl_label = "한글 입력"
 
     def invoke(self, context, event):
+        kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
         if context.collection is None:
             Utils.MessageBox(context, "활성 컬렉션이 없습니다")
             return {'CANCELLED'}
         self.source = "검색 필터"
-        self.display = TextDisplay(event, context.space_data.filter_text, context.region)
+        self.display = TextDisplay(event, context.space_data.filter_text, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -251,11 +258,12 @@ class KOREAN_OT_dopesheet(GPU_OT_base):
     bl_label = "한글 입력"
 
     def invoke(self, context, event):
+        kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
         if context.object is None:
             Utils.MessageBox(context, "활성 오브젝트가 없습니다")
             return {'CANCELLED'}
         self.source = "검색 필터"
-        self.display = TextDisplay(event, context.space_data.dopesheet.filter_text, context.region)
+        self.display = TextDisplay(event, context.space_data.dopesheet.filter_text, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -305,9 +313,10 @@ class KOREAN_OT_properties(GPU_OT_base):
         return not bpy.ops.ui.copy_data_path_button.poll()
 
     def invoke(self, context, event):
+        kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
         self.source = "검색 필터"
         self.mesh_source_index = 0
-        self.display = TextDisplay(event, context.space_data.search_filter, context.region)
+        self.display = TextDisplay(event, context.space_data.search_filter, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -390,12 +399,13 @@ class KOREAN_OT_textfield(GPU_OT_base):
         return bpy.ops.ui.copy_data_path_button.poll()
 
     def invoke(self, context, event):
+        kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
         self.source = "텍스트 입력 필드"
         bpy.ops.ui.copy_data_path_button(full_path=True)
         self.data_path = context.window_manager.clipboard
         if not isinstance(eval(context.window_manager.clipboard), str):
             return {"CANCELLED"}
-        self.display = TextDisplay(event, eval(self.data_path), context.region)
+        self.display = TextDisplay(event, eval(self.data_path), context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -428,11 +438,12 @@ class KOREAN_OT_graph(GPU_OT_base):
     bl_label = "한글 입력"
 
     def invoke(self, context, event):
+        kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
         if context.object is None:
             Utils.MessageBox(context, "활성 오브젝트가 없습니다")
             return {'CANCELLED'}
         self.source = "검색 필터"
-        self.display = TextDisplay(event, context.space_data.dopesheet.filter_text, context.region)
+        self.display = TextDisplay(event, context.space_data.dopesheet.filter_text, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -460,11 +471,12 @@ class KOREAN_OT_nonlinear(GPU_OT_base):
     bl_label = "한글 입력"
 
     def invoke(self, context, event):
+        kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
         if context.object is None:
             Utils.MessageBox(context, "활성 오브젝트가 없습니다")
             return {'CANCELLED'}
         self.source = "검색 필터"
-        self.display = TextDisplay(event, context.space_data.dopesheet.filter_text, context.region)
+        self.display = TextDisplay(event, context.space_data.dopesheet.filter_text, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -492,10 +504,11 @@ class KOREAN_OT_sequencer(GPU_OT_base):
     bl_label = "한글 입력"
 
     def invoke(self, context, event):
+        kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
         if context.scene.sequence_editor.active_strip is None:
             return {'CANCELLED'}
         self.source = "시퀀스 스트립 이름"
-        self.display = TextDisplay(event, context.scene.sequence_editor.active_strip.name, context.region)
+        self.display = TextDisplay(event, context.scene.sequence_editor.active_strip.name, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -537,8 +550,9 @@ class KOREAN_OT_browser(GPU_OT_base):
     bl_label = "한글 입력"
 
     def invoke(self, context, event):
+        kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
         self.source = "검색 필터"
-        self.display = TextDisplay(event, context.space_data.params.filter_search, context.region)
+        self.display = TextDisplay(event, context.space_data.params.filter_search, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -583,6 +597,85 @@ class KOREAN_OT_browser(GPU_OT_base):
     def OnDraw3D(self, context):
         pass
 
+class KOREAN_OT_text_editor(GPU_OT_base):
+    """간접적으로 한글을 입력한다"""
+    bl_idname = "korean.text_editor"
+    bl_label = "한글 입력"
+
+    text: bpy.props.StringProperty()
+
+    def invoke(self, context, event):
+        kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
+        self.source = "한글 입력"
+        self.display = TextDisplay(event, "", context.region, kmode)
+        self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
+        self.RegisterHandlers(context)
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def modal(self, context, event):
+        if context.area:
+            context.area.tag_redraw()
+        return self.display.Modal(self, context, event)
+
+    def ApplyText(self, context):
+        text = self.display.GetText()
+        t = context.space_data.text
+        if t.current_line_index == t.select_end_line_index and t.current_character == t.select_end_character:
+            clb = t.current_line.body
+            t.current_line.body = clb[:t.current_character] + text + clb[t.current_character:]
+            t.current_character += len(text)
+            t.select_end_character = t.current_character
+        else:
+            bpy.ops.text.delete()
+            clb = t.current_line.body
+            t.current_line.body = clb[:t.current_character] + text + clb[t.current_character:]
+            t.current_character += len(text)
+            t.select_end_character = t.current_character
+        return True
+
+    def OnDraw2D(self, context):
+        self.display.Draw(self, context, self.source)
+
+    def OnDraw3D(self, context):
+        pass
+
+class KOREAN_OT_text_find(GPU_OT_base):
+    """간접적으로 한글을 입력한다"""
+    bl_idname = "korean.text_find"
+    bl_label = "한글 입력"
+
+    text: bpy.props.StringProperty()
+
+    def invoke(self, context, event):
+        kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
+        self.source = "찾기"
+        self.display = TextDisplay(event, "", context.region, kmode)
+        self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
+        self.RegisterHandlers(context)
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def modal(self, context, event):
+        if context.area:
+            context.area.tag_redraw()
+        return self.display.Modal(self, context, event)
+
+    def ApplyText(self, context):
+        text = self.display.GetText()
+        if text == "":
+            Utils.MessageBox(context, "찾을 글자를 입력하세요")
+            return False
+        context.space_data.find_text = text
+        bpy.ops.text.find()
+        return False
+
+    def OnDraw2D(self, context):
+        self.display.Draw(self, context, self.source)
+
+    def OnDraw3D(self, context):
+        pass
+
 ### 클래스 등록 ###
 
 classes = (
@@ -595,6 +688,8 @@ classes = (
     KOREAN_OT_nonlinear,
     KOREAN_OT_sequencer,
     KOREAN_OT_browser,
+    KOREAN_OT_text_editor,
+    KOREAN_OT_text_find,
     )
 
 def register():
