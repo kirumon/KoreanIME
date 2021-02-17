@@ -19,10 +19,27 @@ class KOR_Preferences(AddonPreferences):
     bl_idname = __package__
 
     kmode: bpy.props.BoolProperty(default=False)
+    textColor: bpy.props.FloatVectorProperty(subtype='COLOR', size=4, min=0.0, max=1.0, default=(1.0,1.0,1.0,1.0))
+    shadowColor: bpy.props.FloatVectorProperty(subtype='COLOR', size=4, min=0.0, max=1.0, default=(0.1,0.1,0.1,1.0))
+    indicatorColor: bpy.props.FloatVectorProperty(subtype='COLOR', size=4, min=0.0, max=1.0, default=(1.0,1.0,0.0,1.0))
+    sourceColor: bpy.props.FloatVectorProperty(subtype='COLOR', size=4, min=0.0, max=1.0, default=(0.5,0.5,0.5,1.0))
+    blockColor: bpy.props.FloatVectorProperty(subtype='COLOR', size=4, min=0.0, max=1.0, default=(0.5,0.5,1.0,1.0))
+    cursorColor: bpy.props.FloatVectorProperty(subtype='COLOR', size=4, min=0.0, max=1.0, default=(1.0,0.0,0.0,1.0))
+    lineHeight: bpy.props.IntProperty(min=5, max=50, default=25)
 
     def draw(self, context):
         layout = self.layout
         row = layout.row()
+        row.prop(self, "textColor", text="텍스트 색상")
+        row.prop(self, "shadowColor", text="그림자 색상")
+        row = layout.row()
+        row.prop(self, "sourceColor", text="원본 종류(일반) 색상")
+        row.prop(self, "indicatorColor", text="원본 종류(한글) 색상")
+        row = layout.row()
+        row.prop(self, "blockColor", text="선택 블록 색상")
+        row.prop(self, "cursorColor", text="커서 색상")
+        row = layout.row()
+        row.prop(self, "lineHeight", text="줄 높이(pixel)")
 
 ### 모듈 등록 ###
 

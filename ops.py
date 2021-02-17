@@ -1,7 +1,6 @@
 import bpy
 import os
 from . gpu_op import GPU_OT_base
-from . font import Font
 from . korean import Korean
 from . utils import Utils, RegionInfo
 from . draw import GPU
@@ -25,17 +24,29 @@ DEFAULT_FILE_EXTENSION = {
 }
 
 class TextDisplay:
-    def __init__(self, event, text, start_region, kmode=True):
+    def __init__(self, context, event, text, start_region, kmode=True, multi=False):
         self.enable = True
         self.mouse = (event.mouse_region_x, event.mouse_region_y)
         self.showCursor = True
         self.korean = Korean(kmode)
         self.korean.SetText(text)
         self.region = start_region
+        self.multiLine = multi
 
-    def SetText(self, text):
+        addon = context.preferences.addons[__package__.split(".")[0]]
+        self.textColor = addon.preferences.textColor
+        self.shadowColor = addon.preferences.shadowColor
+        self.indicatorColor = addon.preferences.indicatorColor
+        self.sourceColor = addon.preferences.sourceColor
+        self.blockColor = addon.preferences.blockColor
+        self.cursorColor = addon.preferences.cursorColor
+        self.lineHeight = addon.preferences.lineHeight
+
+
+    def SetText(self, text, multi=False):
         self.enable = True
-        self.korean.SetText(text)
+        self.multiLine = multi
+        self.korean.SetText(text, multi)
 
     def GetText(self):
         return self.korean.GetText()
@@ -53,8 +64,16 @@ class TextDisplay:
             context.preferences.addons[__package__.split(".")[0]].preferences.kmode = self.korean.koreanMode
             return {'CANCELLED'}
         if event.type in {"RET", "NUMPAD_ENTER"} and event.value=='PRESS':
-            if not cls.ApplyText(context):
-                return {'RUNNING_MODAL'}
+            if self.korean.multiLine:
+                if event.shift:
+                    if not cls.ApplyText(context):
+                        return {'RUNNING_MODAL'}
+                else:
+                    self.korean.LineFeed()
+                    return {'RUNNING_MODAL'}
+            else:
+                if not cls.ApplyText(context):
+                    return {'RUNNING_MODAL'}
             context.window_manager.event_timer_remove(cls.timer)
             cls.UnregisterHandlers(context)
             context.preferences.addons[__package__.split(".")[0]].preferences.kmode = self.korean.koreanMode
@@ -67,6 +86,10 @@ class TextDisplay:
             self.korean.MoveLeft(event.shift)
         if event.type == "RIGHT_ARROW" and event.value=='PRESS':
             self.korean.MoveRight(event.shift)
+        if event.type == "UP_ARROW" and event.value=='PRESS':
+            self.korean.MoveUp(event.shift)
+        if event.type == "DOWN_ARROW" and event.value=='PRESS':
+            self.korean.MoveDown(event.shift)
         if event.type == "DEL" and event.value=='PRESS':
             self.korean.Delete()
         if event.type == "BACK_SPACE" and event.value=='PRESS':
@@ -100,46 +123,86 @@ class TextDisplay:
         else:
             return self.mouse
 
+    def GetMaxWidth(self, cls, lines):
+        width = 0
+        for s in lines:
+            w, h = cls.GetTextDimension(s, TEXT_SIZE)
+            width = max(w, width)
+        return width
+
     def Draw(self, cls, context, source):
         mx, my = self.getMouseCoord(cls, context)
         te = 10 if context.space_data.type == 'TEXT_EDITOR' else 0
-        if self.enable:
-            modeText = "[가]" if self.korean.GetMode() else "[A]"
-            text = f"{modeText} {self.korean.GetText()}"
-            dx, dy = cls.GetTextDimension(text, TEXT_SIZE)
-            self.drawBlock(cls, mx-dx/2, my+te, modeText)
-            if self.showCursor:
-                self.drawCursor(cls, mx-dx/2, my+te, modeText)
-            self.drawText(cls, mx-dx/2, my+5+te, text, modeText)
-            self.drawMode(cls, mx-dx/2, my+te, source)
+        if self.multiLine:
+            lines = self.korean.GetText().split('\n')
+            textHeight = (len(lines)-1) * self.lineHeight
+            left = mx - self.GetMaxWidth(cls, lines) / 2
+            self.drawBlock(cls, left, my)
+            for i, s in enumerate(lines):
+                if i == self.korean.currentLine:
+                    dx, dy = cls.GetTextDimension(s, TEXT_SIZE)
+                    if self.showCursor:
+                        self.drawCursor(cls, left, my + textHeight - i * self.lineHeight, s)
+                    self.drawText(cls, left, my + 5 + textHeight - i * self.lineHeight, s)
+                else:
+                    dx, dy = cls.GetTextDimension(s, TEXT_SIZE)
+                    self.drawText(cls, left, my + 5 + textHeight - i * self.lineHeight, s)
+            self.drawSource(cls, left, my + textHeight, source)
         else:
-            text = "데이터가 없습니다"
-            dx, dy = cls.GetTextDimension(text, TEXT_SIZE)
-            cls.DrawTextS(mx-dx/2, my+5, text, TEXT_SIZE)
-            self.drawMode(cls, mx-dx/2, my, source)
+            if self.enable:
+                text = self.korean.GetText()
+                dx, dy = cls.GetTextDimension(text, TEXT_SIZE)
+                self.drawBlock(cls, mx-dx/2, my+te)
+                if self.showCursor:
+                    self.drawCursor(cls, mx-dx/2, my+te, self.korean.GetText())
+                self.drawText(cls, mx-dx/2, my+5+te, text)
+                self.drawSource(cls, mx-dx/2, my+te, source)
+            else:
+                text = "데이터가 없습니다"
+                dx, dy = cls.GetTextDimension(text, TEXT_SIZE)
+                cls.DrawTextS(mx-dx/2, my+5, text, TEXT_SIZE, self.textColor, self.shadowColor)
+                self.drawSource(cls, mx-dx/2, my, source)
 
-    def drawText(self, cls, sx, sy, text, modeText):
-        cls.DrawTextS(sx, sy, text, TEXT_SIZE)
-        cls.DrawTextS(sx, sy, modeText, TEXT_SIZE, (1.0,1.0,0.0,1.0))
+    def drawText(self, cls, sx, sy, text):
+        cls.DrawTextS(sx, sy, text, TEXT_SIZE, self.textColor, self.shadowColor)
 
-    def drawCursor(self, cls, sx, sy, modeText):
-        text = self.korean.GetText()
-        displayText = f"{modeText} {text}"
-        dx, dy = cls.GetTextDimension(f"{modeText} {text[:self.korean.cursor]}", TEXT_SIZE)
+    def drawCursor(self, cls, sx, sy, text):
+        dx, dy = cls.GetTextDimension(f"{text[:self.korean.cursor]}", TEXT_SIZE)
         cx = 2
         if self.korean.status != "":
             cx, cy = cls.GetTextDimension(self.korean.combine(), TEXT_SIZE)
-        GPU.DrawRect(sx+dx, sy, cx, dy+5, (1,0,0,1))
+        GPU.DrawRect(sx+dx, sy, cx, self.lineHeight, self.cursorColor)
 
-    def drawBlock(self, cls, sx, sy, modeText):
-        text = self.korean.GetText()
-        displayText = f"{modeText} {text}"
-        dsx, dsy = cls.GetTextDimension(f"{modeText} {text[:self.korean.selectionStart]}", TEXT_SIZE)
-        dex, dey = cls.GetTextDimension(f"{modeText} {text[:self.korean.selectionEnd]}", TEXT_SIZE)
-        GPU.DrawRect(sx+dsx, sy, dex-dsx, dey+5, (0.5,0.5,1,1))
+    def drawBlock(self, cls, sx, sy):
+        if self.multiLine:
+            lines = self.korean.GetText().split('\n')
+            textHeight = (len(lines)-1) * self.lineHeight
+            for i, s in enumerate(lines):
+                if i < self.korean.selectStartLine or i > self.korean.selectEndLine:
+                    continue
+                elif i == self.korean.selectStartLine:
+                    dsx, dsy = cls.GetTextDimension(f"{s[:self.korean.selectStart]}", TEXT_SIZE)
+                    dex, dey = cls.GetTextDimension(s, TEXT_SIZE)
+                    if i == self.korean.selectEndLine:
+                        dex, dey = cls.GetTextDimension(f"{s[:self.korean.selectEnd]}", TEXT_SIZE)
+                    GPU.DrawRect(sx+dsx, sy+textHeight-i*self.lineHeight, dex-dsx, self.lineHeight, self.blockColor)
+                elif i > self.korean.selectStartLine and i < self.korean.selectEndLine:
+                    dx, dy = cls.GetTextDimension(s, TEXT_SIZE)
+                    GPU.DrawRect(sx, sy+textHeight-i*self.lineHeight, dx, self.lineHeight, self.blockColor)
+                else:
+                    dex, dey = cls.GetTextDimension(f"{s[:self.korean.selectEnd]}", TEXT_SIZE)
+                    GPU.DrawRect(sx, sy+textHeight-i*self.lineHeight, dex, self.lineHeight, self.blockColor)
+        else:
+            text = self.korean.GetText()
+            dsx, dsy = cls.GetTextDimension(f"{text[:self.korean.selectStart]}", TEXT_SIZE)
+            dex, dey = cls.GetTextDimension(f"{text[:self.korean.selectEnd]}", TEXT_SIZE)
+            cx = sx + dsx
+            width = dex - dsx
+            GPU.DrawRect(cx, sy, width, self.lineHeight, self.blockColor)
 
-    def drawMode(self, cls, sx, sy, source):
-        cls.DrawTextS(sx, sy+30, source, 13, (0.5,0.5,0.5,1.0))
+    def drawSource(self, cls, sx, sy, source):
+        color = self.indicatorColor if self.korean.GetMode() else self.sourceColor
+        cls.DrawTextS(sx, sy+30, source, 13, color)
 
 class KOREAN_OT_view3d(GPU_OT_base):
     """간접적으로 한글을 입력한다"""
@@ -152,7 +215,7 @@ class KOREAN_OT_view3d(GPU_OT_base):
             Utils.MessageBox(context, "활성 오브젝트가 없습니다")
             return {'CANCELLED'}
         self.source = "오브젝트 이름"
-        self.display = TextDisplay(event, context.object.name, context.region, kmode)
+        self.display = TextDisplay(context, event, context.object.name, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -167,7 +230,7 @@ class KOREAN_OT_view3d(GPU_OT_base):
         if event.type == "F2" and event.value=='PRESS':
             if self.source == "오브젝트 이름" and context.object.type == 'FONT':
                 self.source = "텍스트"
-                self.display.SetText(context.object.data.body)
+                self.display.SetText(context.object.data.body, True)
             else:
                 self.source = "오브젝트 이름"
                 self.display.SetText(context.object.name)
@@ -198,7 +261,10 @@ class KOREAN_OT_view3d(GPU_OT_base):
         return True
 
     def OnDraw2D(self, context):
-        self.display.Draw(self, context, self.source)
+        if self.source == "텍스트":
+            self.display.Draw(self, context, self.source)
+        else:
+            self.display.Draw(self, context, self.source)
 
     def OnDraw3D(self, context):
         pass
@@ -214,7 +280,7 @@ class KOREAN_OT_outliner(GPU_OT_base):
             Utils.MessageBox(context, "활성 컬렉션이 없습니다")
             return {'CANCELLED'}
         self.source = "검색 필터"
-        self.display = TextDisplay(event, context.space_data.filter_text, context.region, kmode)
+        self.display = TextDisplay(context, event, context.space_data.filter_text, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -263,7 +329,7 @@ class KOREAN_OT_dopesheet(GPU_OT_base):
             Utils.MessageBox(context, "활성 오브젝트가 없습니다")
             return {'CANCELLED'}
         self.source = "검색 필터"
-        self.display = TextDisplay(event, context.space_data.dopesheet.filter_text, context.region, kmode)
+        self.display = TextDisplay(context, event, context.space_data.dopesheet.filter_text, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -316,7 +382,7 @@ class KOREAN_OT_properties(GPU_OT_base):
         kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
         self.source = "검색 필터"
         self.mesh_source_index = 0
-        self.display = TextDisplay(event, context.space_data.search_filter, context.region, kmode)
+        self.display = TextDisplay(context, event, context.space_data.search_filter, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -405,7 +471,7 @@ class KOREAN_OT_textfield(GPU_OT_base):
         self.data_path = context.window_manager.clipboard
         if not isinstance(eval(context.window_manager.clipboard), str):
             return {"CANCELLED"}
-        self.display = TextDisplay(event, eval(self.data_path), context.region, kmode)
+        self.display = TextDisplay(context, event, eval(self.data_path), context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -443,7 +509,7 @@ class KOREAN_OT_graph(GPU_OT_base):
             Utils.MessageBox(context, "활성 오브젝트가 없습니다")
             return {'CANCELLED'}
         self.source = "검색 필터"
-        self.display = TextDisplay(event, context.space_data.dopesheet.filter_text, context.region, kmode)
+        self.display = TextDisplay(context, event, context.space_data.dopesheet.filter_text, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -476,7 +542,7 @@ class KOREAN_OT_nonlinear(GPU_OT_base):
             Utils.MessageBox(context, "활성 오브젝트가 없습니다")
             return {'CANCELLED'}
         self.source = "검색 필터"
-        self.display = TextDisplay(event, context.space_data.dopesheet.filter_text, context.region, kmode)
+        self.display = TextDisplay(context, event, context.space_data.dopesheet.filter_text, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -508,7 +574,7 @@ class KOREAN_OT_sequencer(GPU_OT_base):
         if context.scene.sequence_editor.active_strip is None:
             return {'CANCELLED'}
         self.source = "시퀀스 스트립 이름"
-        self.display = TextDisplay(event, context.scene.sequence_editor.active_strip.name, context.region, kmode)
+        self.display = TextDisplay(context, event, context.scene.sequence_editor.active_strip.name, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -552,7 +618,7 @@ class KOREAN_OT_browser(GPU_OT_base):
     def invoke(self, context, event):
         kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
         self.source = "검색 필터"
-        self.display = TextDisplay(event, context.space_data.params.filter_search, context.region, kmode)
+        self.display = TextDisplay(context, event, context.space_data.params.filter_search, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -607,7 +673,7 @@ class KOREAN_OT_text_editor(GPU_OT_base):
     def invoke(self, context, event):
         kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
         self.source = "한글 입력"
-        self.display = TextDisplay(event, "", context.region, kmode)
+        self.display = TextDisplay(context, event, "", context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -650,7 +716,7 @@ class KOREAN_OT_text_find(GPU_OT_base):
     def invoke(self, context, event):
         kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
         self.source = "찾기"
-        self.display = TextDisplay(event, "", context.region, kmode)
+        self.display = TextDisplay(context, event, "", context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
