@@ -587,7 +587,7 @@ class KOREAN_OT_sequencer(GPU_OT_base):
             if self.source == "시퀀스 스트립 이름":
                 if context.scene.sequence_editor.active_strip.type == 'TEXT':
                     self.source = "텍스트"
-                    self.display.SetText(context.scene.sequence_editor.active_strip.text)
+                    self.display.SetText(context.scene.sequence_editor.active_strip.text, True)
             else:
                 self.source = "시퀀스 스트립 이름"
                 self.display.SetText(context.scene.sequence_editor.active_strip.name)
