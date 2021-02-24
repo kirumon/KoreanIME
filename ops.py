@@ -29,7 +29,7 @@ class TextDisplay:
         self.mouse = (event.mouse_region_x, event.mouse_region_y)
         self.showCursor = True
         self.korean = Korean(kmode)
-        self.korean.SetText(text)
+        self.korean.SetText(text, multi)
         self.region = start_region
         self.multiLine = multi
 
@@ -214,8 +214,12 @@ class KOREAN_OT_view3d(GPU_OT_base):
         if context.object is None:
             Utils.MessageBox(context, "활성 오브젝트가 없습니다")
             return {'CANCELLED'}
-        self.source = "오브젝트 이름"
-        self.display = TextDisplay(context, event, context.object.name, context.region, kmode)
+        if context.object.type == 'FONT':
+            self.source = "텍스트"
+            self.display = TextDisplay(context, event, context.object.data.body, context.region, kmode, True)
+        else:
+            self.source = "오브젝트 이름"
+            self.display = TextDisplay(context, event, context.object.name, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -573,8 +577,12 @@ class KOREAN_OT_sequencer(GPU_OT_base):
         kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
         if context.scene.sequence_editor.active_strip is None:
             return {'CANCELLED'}
-        self.source = "시퀀스 스트립 이름"
-        self.display = TextDisplay(context, event, context.scene.sequence_editor.active_strip.name, context.region, kmode)
+        if context.scene.sequence_editor.active_strip.type == 'TEXT':
+            self.source = "텍스트"
+            self.display = TextDisplay(context, event, context.scene.sequence_editor.active_strip.text, context.region, kmode, True)
+        else:
+            self.source = "시퀀스 스트립 이름"
+            self.display = TextDisplay(context, event, context.scene.sequence_editor.active_strip.name, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)

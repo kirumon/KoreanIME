@@ -144,6 +144,9 @@ class Korean:
 
     def LineHome(self, shift):
         if self.multiLine:
+            if self.status != "":
+                self.lines[self.currentLine] = self.lines[self.currentLine][:self.selectStart] + self.combine() + self.lines[self.currentLine][self.selectEnd:]
+                self.status = self.combineChar = ""
             atStart = True if self.currentLine == self.selectStartLine and self.cursor == self.selectStart else False
             if shift:
                 if self.selectStartLine == self.selectEndLine:
@@ -355,6 +358,11 @@ class Korean:
     def MoveUp(self, shift=False):
         atStart = True if self.currentLine == self.selectStartLine and self.cursor == self.selectStart else False
         if self.multiLine:
+            if self.status != "":
+                self.lines[self.currentLine] = self.lines[self.currentLine][:self.selectStart] + self.combine() + self.lines[self.currentLine][self.selectEnd:]
+                self.status = self.combineChar = ""
+                self.cursor += 1
+                self.selectStart = self.selectEnd = self.cursor
             if self.currentLine > 0 :
                 self.currentLine -= 1
             self.cursor = min(self.cursor, len(self.lines[self.currentLine]))
@@ -387,6 +395,11 @@ class Korean:
     def MoveDown(self, shift=False):
         atEnd = True if self.currentLine == self.selectEndLine and self.cursor == self.selectEnd else False
         if self.multiLine:
+            if self.status != "":
+                self.lines[self.currentLine] = self.lines[self.currentLine][:self.selectStart] + self.combine() + self.lines[self.currentLine][self.selectEnd:]
+                self.status = self.combineChar = ""
+                self.cursor += 1
+                self.selectStart = self.selectEnd = self.cursor
             if self.currentLine < len(self.lines) - 1:
                 self.currentLine += 1
                 self.cursor = min(self.cursor, len(self.lines[self.currentLine]))
