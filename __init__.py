@@ -2,11 +2,11 @@ bl_info = {
     "name" : "KoreanIME",
     "author" : "영마섬",
     "description" : "블렌더에서 한글 입력을 할 수 있게 해주는 애드온",
-    "version" : (0, 0, 1),
+    "version" : (0, 80, 0),
     "blender" : (2, 80, 0),
-    "location" : "",
+    "location" : "단축키 F2",
     "warning" : "",
-    "category" : "Generic"
+    "category" : "System"
 }
 
 import bpy
