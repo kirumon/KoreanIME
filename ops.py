@@ -211,15 +211,22 @@ class KOREAN_OT_view3d(GPU_OT_base):
 
     def invoke(self, context, event):
         kmode = context.preferences.addons[__package__.split(".")[0]].preferences.kmode
-        if context.object is None:
-            Utils.MessageBox(context, "활성 오브젝트가 없습니다")
-            return {'CANCELLED'}
-        if context.object.type == 'FONT':
-            self.source = "텍스트"
-            self.display = TextDisplay(context, event, context.object.data.body, context.region, kmode, True)
-        else:
-            self.source = "오브젝트 이름"
-            self.display = TextDisplay(context, event, context.object.name, context.region, kmode)
+        if context.mode == 'OBJECT':
+            if context.object is None:
+                Utils.MessageBox(context, "활성 오브젝트가 없습니다")
+                return {'CANCELLED'}
+            if context.object.type == 'FONT':
+                self.source = "텍스트"
+                self.display = TextDisplay(context, event, context.object.data.body, context.region, kmode, True)
+            else:
+                self.source = "오브젝트 이름"
+                self.display = TextDisplay(context, event, context.object.name, context.region, kmode)
+        elif context.mode in {'EDIT_ARMATURE', 'POSE'}:
+            if context.active_bone is None:
+                Utils.MessageBox(context, "활성 Bone이 없습니다")
+                return {'CANCELLED'}
+            self.source = "Bone 이름"
+            self.display = TextDisplay(context, event, context.active_bone.name, context.region, kmode)
         self.timer = context.window_manager.event_timer_add(0.6, window=context.window)
         self.RegisterHandlers(context)
         context.window_manager.modal_handler_add(self)
@@ -262,6 +269,8 @@ class KOREAN_OT_view3d(GPU_OT_base):
             context.scene.name = self.display.GetText()
         if self.source == "뷰레이어 이름":
             context.view_layer.name = self.display.GetText()
+        if self.source == "Bone 이름":
+            context.active_bone.name = self.display.GetText()
         return True
 
     def OnDraw2D(self, context):
